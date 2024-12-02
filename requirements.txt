@@ -1,0 +1,9 @@
+Flask==3.0.3
+gunicorn==23.0.0
+python-dotenv==1.0.0
+requests==2.32.3
+web3==7.6.0
+eth-abi==5.1.0
+eth-account==0.13.4
+aiohttp==3.9.5
+jsonschema==4.17.3
