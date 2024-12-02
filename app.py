@@ -334,13 +334,13 @@ def webhook():
         if "countdown" not in original_message_text.lower():
             logger.info("Original message does not contain the required keyword. Ignored.")
             return jsonify({"status": "No matching message"}), 200
-
         # Fetch parent user info using Neynar API
         parent_author_fid = cast_data.get("parent_author", {}).get("fid", None) or "N/A"
         parent_user_info = fetch_user_info(parent_author_fid) if parent_author_fid != "N/A" else None
         if not parent_user_info:
             logger.warning(f"User information for fid {parent_author_fid} could not be retrieved.")
             return jsonify({"status": "User info unavailable"}), 400
+
 
         username = parent_user_info.get("username", "N/A")
         follower_count = parent_user_info.get("follower_count", 0)  # Ensure follower count defaults to 0
