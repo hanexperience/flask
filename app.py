@@ -122,31 +122,6 @@ DEFAULT_SWAP_AMOUNT = web3.to_wei(0.0001, 'ether')  # Example: 0.01 ETH
 
 app = Flask(__name__)
 
-def evaluate_contract(contract_address):
-    """
-    Evaluate if a contract meets the sniping requirements.
-    Args:
-        contract_address (str): The contract address to evaluate.
-    Returns:
-        bool: True if the contract meets the requirements, False otherwise.
-    """
-    try:
-        # Example criteria: market cap, token liquidity, etc.
-        market_cap = fetch_market_cap(contract_address)
-        if market_cap and market_cap > 1_000_000:  # Example: Minimum market cap of $1M
-            logger.info(f"Contract {contract_address} meets the sniping requirements. Market Cap: ${market_cap:.2f}")
-            return True
-        else:
-            logger.warning(f"Contract {contract_address} does not meet the sniping requirements.")
-            return False
-    except Exception as e:
-        logger.error(f"Error evaluating contract {contract_address}: {e}")
-        return False
-
-# Function to send a message or photo to Telegram
-
-
-
 
 # Function to fetch user information using the Neynar API
 def fetch_user_info(fid):
@@ -193,49 +168,6 @@ def fetch_cast_by_hash(cast_hash):
         logger.error(f"Error fetching cast for hash {cast_hash}: {e}")
         return None
         
-def extract_image_url_from_cast(cast_data):
-    # Try to extract image URL from 'embeds' field
-    embeds = cast_data.get('embeds', [])
-    for embed in embeds:
-        if embed.get('type') == 'image' and 'url' in embed:
-            return embed['url']
-    # Alternatively, check for 'attachments' or other fields
-    attachments = cast_data.get('attachments', [])
-    for attachment in attachments:
-        if attachment.get('type') == 'image' and 'url' in attachment:
-            return attachment['url']
-    # If no image found, return None
-    return None
-   
-
-def get_follower_rating(follower_count, use_emojis=False):
-    """
-    Returns a star or emoji rating based on follower count.
-    :param follower_count: The number of followers.
-    :param use_emojis: Whether to use emoji-based ratings.
-    :return: A string representing the rating.
-    """
-    if follower_count is None or follower_count == "N/A":
-        return "💩" if use_emojis else "✰✰✰✰✰"
-    
-    try:
-        count = int(follower_count)
-        if count < 50:
-            return "💩" if use_emojis else "💩"
-        elif count < 100:
-            return "⭐✰✰✰✰" if use_emojis else "⭐✰✰✰✰"
-        elif count < 500:
-            return "⭐⭐✰✰✰" if use_emojis else "⭐⭐✰✰✰"
-        elif count < 1000:
-            return "⭐⭐⭐✰✰" if use_emojis else "⭐⭐⭐✰✰"
-        elif count < 5000:  # Updated to 3 stars for 1000-5000
-            return "⭐⭐⭐✰✰" if use_emojis else "⭐⭐⭐✰✰"
-        elif count < 20000:  # 4 stars for 5000-20000
-            return "⭐⭐⭐⭐✰" if use_emojis else "⭐⭐⭐⭐✰"
-        else:  # 5 stars for 20000 and above
-            return "⭐⭐⭐⭐⭐" if use_emojis else "⭐⭐⭐⭐⭐"
-    except ValueError:
-        return "💩" if use_emojis else "✰✰✰✰✰"
 
 
 def format_follower_count(follower_count):
@@ -246,19 +178,6 @@ def format_follower_count(follower_count):
     except (ValueError, TypeError):
         return "N/A"  # Return "N/A" if invalid
 
-def get_rating_emoji(rating):
-    if rating is None or rating == "N/A":
-        return ""
-    try:
-        rating = float(rating)
-        if rating < 0.3:
-            return "⭐"
-        elif rating < 0.6:
-            return "⭐⭐"
-        else:
-            return "⭐⭐⭐"
-    except ValueError:
-        return ""
 
 def extract_clanker_url(message_text):
     pattern = r'(https://clanker\.world/clanker/[a-zA-Z0-9]+)'
@@ -368,52 +287,7 @@ MONITORED_FID = "411466"  # Replace with the desired fid
 FOLLOWER_THRESHOLD = 1   # Set the follower count threshold
 
 
-def fetch_clanker_image(clanker_url):
-    """
-    Scrapes the Clanker URL to fetch the token's image URL.
 
-    Args:
-        clanker_url (str): The URL to the Clanker page.
-
-    Returns:
-        str: The image URL if found, or None otherwise.
-    """
-    try:
-        response = requests.get(clanker_url, timeout=10)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            # Locate the image element based on its structure in the HTML
-            img_tag = soup.find('img', {'class': 'w-full h-full object-contain rounded-lg bg-gray-50'})
-            if img_tag and 'src' in img_tag.attrs:
-                return img_tag['src']
-        logger.error(f"No valid image found on Clanker page: {clanker_url}")
-    except Exception as e:
-        logger.error(f"Error fetching Clanker image: {e}")
-    return None
-
-
-def fetch_clanker_ticker(clanker_url):
-    """
-    Scrapes the Clanker URL to fetch the token's ticker.
-
-    Args:
-        clanker_url (str): The URL to the Clanker page.
-
-    Returns:
-        str: The ticker if found, or None otherwise.
-    """
-    try:
-        response = requests.get(clanker_url, timeout=10)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            # Locate the ticker element based on its structure in the HTML
-            ticker_tag = soup.find('p', {'class': 'text-sm font-medium text-gray-500'})
-            if ticker_tag:
-                return ticker_tag.text.strip()
-        logger.error(f"No valid ticker found on Clanker page: {clanker_url}")
-    except Exception as e:
-        logger.error(f"Error fetching Clanker ticker: {e}")
-    return None
 
 
 def extract_ticker(message_text):
@@ -430,36 +304,6 @@ def extract_ticker(message_text):
     match = re.search(r"\$\w+", message_text)
     return match.group(0) if match else None
 
-def truncate_message(message, max_length=100):
-    """
-    Truncates a message to a specified maximum length, appending '...' if it exceeds the limit.
-    
-    Args:
-        message (str): The message to truncate.
-        max_length (int): The maximum allowed length of the message.
-        
-    Returns:
-        str: The truncated message.
-    """
-    return message[:max_length] + '...' if len(message) > max_length else message
-
-def fetch_market_cap(contract_address):
-    try:
-        api_url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
-        response = requests.get(api_url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-
-        # Extract price from the API response
-        price_usd = float(data['pairs'][0]['priceUsd'])
-        total_supply = 1_000_000_000  # Adjust as needed
-        market_cap = total_supply * price_usd
-
-        logger.info(f"Market Cap for {contract_address}: ${market_cap:.2f}")
-        return market_cap
-    except Exception as e:
-        logger.error(f"Error fetching market cap for {contract_address}: {e}")
-        return None
 
 processed_events = set()  # Global set to track processed events
 
@@ -476,10 +320,6 @@ def webhook():
             logger.error("No cast hash in webhook data.")
             return jsonify({"status": "Invalid data"}), 400
 
-        # Deduplication: Check if this event has already been processed
-        if cast_hash in processed_events:
-            logger.info(f"Duplicate event detected: {cast_hash}. Skipping.")
-            return jsonify({"status": "Duplicate event"}), 200
 
         # Mark the event as processed
         processed_events.add(cast_hash)
@@ -521,23 +361,7 @@ def webhook():
 
         logger.info(f"Clanker Address: {clanker_address}")
 
-        # Validate the contract and initiate the purchase
-        if evaluate_contract(clanker_address):  # Ensure the contract meets criteria
-            logger.info(f"Contract {clanker_address} meets requirements. Initiating token purchase...")
-            swap_tokens_v3(
-                wallet=wallet,
-                router_contract=router_contract,
-                token_in=weth_address,
-                token_out=clanker_address,
-                fee_tier=fee_tier,
-                amount_in=DEFAULT_SWAP_AMOUNT
-            )
-        else:
-            logger.warning(f"Contract {clanker_address} does not meet the sniping criteria.")
-            return jsonify({"status": "Contract did not meet criteria"}), 400
-
-        return jsonify({"status": "Purchase initiated"}), 200
-
+        
     except Exception as e:
         logger.error(f"Error processing webhook: {e}")
         return jsonify({"status": "Error processing webhook"}), 500
