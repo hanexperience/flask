@@ -329,7 +329,7 @@ def webhook():
         logger.debug(f"Message Text: {original_message_text}")
 
         # Ensure the message contains the required keyword
-        if "countdown" not in original_message_text.lower():
+        if "your token" not in original_message_text.lower():
             logger.info("Original message does not contain the required keyword. Ignored.")
             return jsonify({"status": "No matching message"}), 200
         
