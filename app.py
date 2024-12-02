@@ -36,7 +36,7 @@ if not web3.is_connected():
     exit()
 
 # Uniswap V3 Router Address and ABI
-router_address = web3.to_checksum_address("0xE592427A0AEce92De3Edee1F18E0157C05861564")  # Uniswap V3 Router
+router_address = web3.to_checksum_address("0x2626664c2603336E57B271c5C0b26F421741e481")  # Uniswap V3 Router
 token_out = web3.to_checksum_address("0x4200000000000000000000000000000000000006")  # USDC on Ethereum
 
 # Load ABIs
@@ -403,6 +403,31 @@ def swap_tokens_v3(wallet, router_contract, token_in, token_out, fee_tier, amoun
 
 if __name__ == "__main__":
     logger.info("Starting Flask server...")
-    # Use Heroku's $PORT variable for Flask
+
+    # Check if DEBUG_MODE is enabled
+    debug_mode = os.getenv("DEBUG_MODE", "false").lower() == "true"
+    if debug_mode:
+        logger.info("DEBUG_MODE is enabled. Performing a test swap...")
+
+        # Define test parameters
+        test_token_out = web3.to_checksum_address("0x2E9b00C64Cb36BC2d51352d818bDF2E682B3B94C")  # Replace with a sample token address
+        test_amount = web3.to_wei(0.0001, "ether")  # Replace with your test amount
+
+        # Perform the swap
+        swap_response = swap_tokens_v3(
+            wallet=wallet,
+            router_contract=router_contract,
+            token_in=weth_address,
+            token_out=test_token_out,
+            fee_tier=fee_tier,
+            amount_in=test_amount,
+        )
+
+        if swap_response.get("status") == "success":
+            logger.info(f"Test swap successful! Tx Hash: {swap_response['tx_hash']}")
+        else:
+            logger.error(f"Test swap failed: {swap_response.get('message')}")
+
+    # Start Flask server
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
