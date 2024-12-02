@@ -115,10 +115,10 @@ referral_code = '7679027761'
 
 # Load environment variables
 DEBUG_SNIPING = os.getenv("DEBUG_SNIPING", "false").lower() == "true"
+# Follower threshold and swap amount
+FOLLOWER_THRESHOLD = int(os.getenv("FOLLOWER_THRESHOLD", 1000))  # Default to 1000
+DEFAULT_SWAP_AMOUNT = web3.to_wei(float(os.getenv("SWAP_AMOUNT", 0.0001)), 'ether') 
 
-
-# Amount to swap in wei (set your desired amount here)
-DEFAULT_SWAP_AMOUNT = web3.to_wei(0.0001, 'ether')  # Example: 0.01 ETH
 
 app = Flask(__name__)
 
@@ -284,10 +284,6 @@ def swap_tokens_v3(wallet, router_contract, token_in, token_out, fee_tier, amoun
 
 # Define the specific user fid to monitor
 MONITORED_FID = "411466"  # Replace with the desired fid
-FOLLOWER_THRESHOLD = 1   # Set the follower count threshold
-
-
-
 
 
 def extract_ticker(message_text):
@@ -313,18 +309,20 @@ def webhook():
         data = request.json
         logger.debug("Received webhook request.")
 
-        # Extract relevant data from webhook payload
+        # Extract relevant data
         cast_data = data.get("data", {})
-        cast_hash = cast_data.get("hash")  # Unique identifier for the cast
+        cast_hash = cast_data.get("hash")
         if not cast_hash:
             logger.error("No cast hash in webhook data.")
             return jsonify({"status": "Invalid data"}), 400
-
-
-        # Mark the event as processed
+        
+        # Deduplicate
+        if cast_hash in processed_events:
+            logger.info(f"Duplicate event detected: {cast_hash}. Skipping.")
+            return jsonify({"status": "Duplicate event"}), 200
         processed_events.add(cast_hash)
 
-        # Extract the author's fid and message text
+        # Extract and validate necessary data
         author_fid = str(cast_data.get("author", {}).get("fid", ""))
         original_message_text = cast_data.get("text", "")
         logger.debug(f"Author FID: {author_fid}")
@@ -334,47 +332,62 @@ def webhook():
         if "countdown" not in original_message_text.lower():
             logger.info("Original message does not contain the required keyword. Ignored.")
             return jsonify({"status": "No matching message"}), 200
-        # Fetch parent user info using Neynar API
-        parent_author_fid = cast_data.get("parent_author", {}).get("fid", None) or "N/A"
-        parent_user_info = fetch_user_info(parent_author_fid) if parent_author_fid != "N/A" else None
-        if not parent_user_info:
-            logger.warning(f"User information for fid {parent_author_fid} could not be retrieved.")
-            return jsonify({"status": "User info unavailable"}), 400
-
-
-        username = parent_user_info.get("username", "N/A")
-        follower_count = parent_user_info.get("follower_count", 0)  # Ensure follower count defaults to 0
-        logger.info(f"Username: {username}, Follower Count: {follower_count}")
-
-        # Check if the follower count meets the threshold
-        FOLLOWER_THRESHOLD = 1000  # Replace with your desired threshold
-        if int(follower_count) < FOLLOWER_THRESHOLD:
-            logger.info(f"Follower count ({follower_count}) below threshold ({FOLLOWER_THRESHOLD}). Ignored.")
-            return jsonify({"status": "Follower count below threshold"}), 200
-
-        # Extract Clanker World URL and contract address
+        
+        # Extract and validate the clanker address
         clanker_url = extract_clanker_url(original_message_text)
         clanker_address = extract_clanker_address(clanker_url)
         if not clanker_address:
             logger.error("No valid contract address found in the message.")
             return jsonify({"status": "No valid contract address"}), 400
 
-        logger.info(f"Clanker Address: {clanker_address}")
+        logger.info(f"Valid clanker address: {clanker_address}. Initiating swap...")
 
-        
+        # Initiate the token swap
+        swap_response = swap_tokens_v3(
+            wallet=wallet,
+            router_contract=router_contract,
+            token_in=weth_address,
+            token_out=clanker_address,
+            fee_tier=fee_tier,
+            amount_in=DEFAULT_SWAP_AMOUNT
+        )
+
+        if swap_response["status"] == "success":
+            logger.info(f"Swap successful! Tx Hash: {swap_response['tx_hash']}")
+            return jsonify({"status": "Swap successful", "tx_hash": swap_response["tx_hash"]}), 200
+        else:
+            logger.error(f"Swap failed: {swap_response['message']}")
+            return jsonify({"status": "Swap failed", "error": swap_response["message"]}), 500
+
     except Exception as e:
         logger.error(f"Error processing webhook: {e}")
         return jsonify({"status": "Error processing webhook"}), 500
 
 
+
 # Updated swap function with additional safety checks
 def swap_tokens_v3(wallet, router_contract, token_in, token_out, fee_tier, amount_in):
+    """
+    Performs a token swap using Uniswap V3.
+    Args:
+        wallet: Tuple of (address, private_key).
+        router_contract: The router contract instance.
+        token_in: Address of the input token.
+        token_out: Address of the output token.
+        fee_tier: Uniswap V3 fee tier.
+        amount_in: Amount of input tokens to swap.
+    Returns:
+        dict: Transaction hash or error message.
+    """
     address, private_key = wallet
     try:
+        logger.info(f"Starting token swap: {amount_in} of {token_in} to {token_out} with fee tier {fee_tier}.")
+        
         # Approve router to spend token_in
         token_in_contract = web3.eth.contract(address=token_in, abi=erc20_abi)
         allowance = token_in_contract.functions.allowance(address, router_address).call()
         if allowance < amount_in:
+            logger.debug(f"Allowance for {token_in} is {allowance}, approving {amount_in}...")
             approve_tx = token_in_contract.functions.approve(router_address, amount_in).build_transaction({
                 'from': address,
                 'gas': 50000,
@@ -387,6 +400,7 @@ def swap_tokens_v3(wallet, router_contract, token_in, token_out, fee_tier, amoun
             web3.eth.wait_for_transaction_receipt(approve_tx_hash)
         
         # Build and send the swap transaction
+        logger.info("Building and sending the swap transaction...")
         params = {
             "tokenIn": token_in,
             "tokenOut": token_out,
@@ -394,8 +408,8 @@ def swap_tokens_v3(wallet, router_contract, token_in, token_out, fee_tier, amoun
             "recipient": address,
             "deadline": int(time.time()) + 300,
             "amountIn": amount_in,
-            "amountOutMinimum": 1,
-            "sqrtPriceLimitX96": 0
+            "amountOutMinimum": 1,  # Accept any positive amount
+            "sqrtPriceLimitX96": 0  # No price limit
         }
         tx = router_contract.functions.exactInputSingle(params).build_transaction({
             'from': address,
@@ -410,8 +424,12 @@ def swap_tokens_v3(wallet, router_contract, token_in, token_out, fee_tier, amoun
         # Wait for confirmation
         receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
         logger.info(f"Transaction confirmed. Receipt: {receipt}")
+        return {"status": "success", "tx_hash": tx_hash.hex()}
+
     except Exception as e:
-        logger.error(f"Error during token swap: {e}")
+        logger.error(f"Error during token swap: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
 
 
 if __name__ == "__main__":
