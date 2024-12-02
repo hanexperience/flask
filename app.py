@@ -283,7 +283,7 @@ def swap_tokens_v3(wallet, router_contract, token_in, token_out, fee_tier, amoun
 
 
 # Define the specific user fid to monitor
-MONITORED_FID = "411466"  # Replace with the desired fid
+MONITORED_FID = "874542"  # Replace with the desired fid
 
 
 def extract_ticker(message_text):
