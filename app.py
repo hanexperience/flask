@@ -27,13 +27,13 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 NEYNAR_API_KEY = os.getenv("NEYNAR_API_KEY")
 BOT_USERNAME = os.getenv("BOT_USERNAME")
 
-# Web3 Configuration
-RPC_URL = 'https://mainnet.base.org'  # Replace with your actual RPC URL
-web3 = Web3(Web3.HTTPProvider(RPC_URL))
+# Web3 Configuration with Alchemy
+ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY")
+if not ALCHEMY_API_KEY:
+    raise ValueError("Alchemy API key not found. Please set ALCHEMY_API_KEY in your .env file.")
 
-if not web3.is_connected():
-    logger.error("Error: Unable to connect to the Web3 provider.")
-    exit()
+RPC_URL = f"https://base-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
+web3 = Web3(Web3.HTTPProvider(RPC_URL))
 
 # Uniswap V3 Router Address and ABI
 router_address = web3.to_checksum_address("0x2626664c2603336E57B271c5C0b26F421741e481")  # Uniswap V3 Router
