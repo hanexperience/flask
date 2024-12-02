@@ -38,59 +38,28 @@ if not web3.is_connected():
 # Uniswap V3 Router Address and ABI
 router_address = web3.to_checksum_address("0xE592427A0AEce92De3Edee1F18E0157C05861564")  # Uniswap V3 Router
 token_out = web3.to_checksum_address("0x4200000000000000000000000000000000000006")  # USDC on Ethereum
-router_abi = json.loads("""[
-  {
-    "inputs": [
-      {"name": "params", "type": "tuple", "components": [
-        {"name": "tokenIn", "type": "address"},
-        {"name": "tokenOut", "type": "address"},
-        {"name": "fee", "type": "uint24"},
-        {"name": "recipient", "type": "address"},
-        {"name": "deadline", "type": "uint256"},
-        {"name": "amountIn", "type": "uint256"},
-        {"name": "amountOutMinimum", "type": "uint256"},
-        {"name": "sqrtPriceLimitX96", "type": "uint160"}
-      ]}
-    ],
-    "name": "exactInputSingle",
-    "outputs": [{"name": "amountOut", "type": "uint256"}],
-    "stateMutability": "payable",
-    "type": "function"
-  }
-]""")
 
-erc20_abi = [
-    {
-        "constant": False,
-        "inputs": [
-            {"name": "_spender", "type": "address"},
-            {"name": "_value", "type": "uint256"}
-        ],
-        "name": "approve",
-        "outputs": [{"name": "", "type": "bool"}],
-        "payable": False,
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "constant": True,
-        "inputs": [{"name": "_owner", "type": "address"}],
-        "name": "balanceOf",
-        "outputs": [{"name": "balance", "type": "uint256"}],
-        "payable": False,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "constant": True,
-        "inputs": [],
-        "name": "decimals",
-        "outputs": [{"name": "", "type": "uint8"}],
-        "payable": False,
-        "stateMutability": "view",
-        "type": "function"
-    }
-]
+# Load ABIs
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the script's directory
+with open(os.path.join(script_dir, "SwapRouterABI.json")) as f:
+    router_abi = json.load(f)
+with open(os.path.join(script_dir, "ERC20ABI.json")) as f:
+    erc20_abi = json.load(f)
+
+# Event ABI for TokenDeployed(address indexed tokenAddress)
+token_deployed_event_abi = {
+    "anonymous": False,
+    "inputs": [
+        {
+            "indexed": True,
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+        }
+    ],
+    "name": "TokenDeployed",
+    "type": "event"
+}
 
 
 router_contract = web3.eth.contract(address=router_address, abi=router_abi)
